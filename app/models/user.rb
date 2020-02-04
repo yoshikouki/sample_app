@@ -1,14 +1,14 @@
 class User < ApplicationRecord
   
-  #仮想トークン属性。
-  attr_accessor :remember_token
+  #仮想トークン属性
+  attr_accessor :remember_token, :activation_token
   
-  before_save { email.downcase! }
-  # before_save { self.email = email.downcase }
+  before_save :downcase_email
+  before_create :create_activation_digest
+  
+  # バリデーション（正規化も含む）
   validates :name,      presence: true, 
                         length: { maximum: 50 }
-  
-  # emailのバリデーションと正規化（前文は正規化の定数宣言）
   VALID_EMAIL_REGEX = /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i
   validates :email,     presence: true, 
                         length: { maximum: 255 },
@@ -40,13 +40,27 @@ class User < ApplicationRecord
   end
   
   # 渡されたトークンがダイジェストと一致したらtrue
-  def authenticated?(remember_token)
-    return false if remember_digest.nil?
-    BCrypt::Password.new(remember_digest).is_password?(remember_token)
+  def authenticated?(attribute, token)
+    digest = send("#{attribute}_digest")
+    return false if digest.nil?
+    BCrypt::Password.new(digest).is_password?(token)
   end
   
   # 永続セッションを破棄。ログアウト時
   def forget
     update_attribute(:remember_digest, nil)
   end
+  
+  private
+    
+    # emailを全て小文字化
+    def downcase_email
+      self.email.downcase!
+    end
+    
+    # 有効化トークンとダイジェストを作成及び代入
+    def create_activation_digest
+      self.activation_token  = User.new_token
+      self.activation_digest = User.digest(activation_token)
+    end
 end
