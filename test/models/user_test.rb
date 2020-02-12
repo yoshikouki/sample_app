@@ -85,4 +85,35 @@ class UserTest < ActiveSupport::TestCase
       @user.destroy
     end
   end
+  
+  # フォロー／解除されるか
+  test "should follow and unfollow a user" do
+    michael = users(:michael)
+    archer = users(:archer)
+    assert_not michael.following?(archer)
+    michael.follow(archer)
+    assert michael.following?(archer)
+    assert archer.followers.include?(michael)   # followed_by?メソッドはアプリケーション上で使うことがないので省略
+    michael.unfollow(archer)
+    assert_not michael.following?(archer)
+  end
+  
+  # ステータスフィードのテスト
+  test "feed should hava the right posts" do
+    michael = users(:michael)
+    archer  = users(:archer)
+    lana    = users(:lana)
+    # フォローしているユーザーの投稿を確認
+    lana.microposts.each do |post_following|
+      assert michael.feed.include?(post_following)
+    end
+    # 自分自身の投稿を確認
+    michael.microposts.each do |post_self|
+      assert michael.feed.include?(post_self)
+    end
+    # フォローしていないユーザーの投稿を確認
+    archer.microposts.each do |post_unfollowed|
+      assert_not michael.feed.include?(post_unfollowed)
+    end
+  end
 end
